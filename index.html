@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#090d1b">
+<title>SARA - Mi asistente IA</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 35%,#17264a,#090d1b 65%);color:#fff;font-family:Arial,sans-serif;display:flex;justify-content:center}
+.app{width:100%;max-width:480px;min-height:100vh;padding:28px 20px;display:flex;flex-direction:column;align-items:center}
+h1{letter-spacing:8px;font-size:32px;margin:0 0 5px}.subtitle{color:#9baed0;font-size:14px}
+.orb{width:190px;height:190px;flex:0 0 auto;border-radius:50%;margin:55px 0 30px;background:radial-gradient(circle at 35% 30%,#e2ffff,#51cfff 20%,#4359d8 55%,#25134c 80%);box-shadow:0 0 30px #39cfff88,0 0 85px #6655ff55,inset 0 0 25px #ffffff66;animation:pulse 3s infinite ease-in-out}
+@keyframes pulse{50%{transform:scale(1.06);box-shadow:0 0 45px #39cfffaa,0 0 100px #6655ff88}}
+#status{color:#79e5ff;min-height:24px;text-align:center;font-size:14px}
+#answer{width:100%;min-height:90px;padding:18px;margin:15px 0;border:1px solid #263c63;border-radius:18px;background:#101a30cc;line-height:1.6;text-align:center;overflow-wrap:anywhere}
+button,input{font:inherit;border-radius:14px;padding:14px}
+#mic{width:76px;height:76px;border:0;border-radius:50%;background:linear-gradient(135deg,#66e5ff,#7770ff);color:#081021;font-size:30px;box-shadow:0 0 28px #49cfff66;cursor:pointer}
+#mic:active{transform:scale(.95)}#mic:disabled{opacity:.6;cursor:not-allowed}
+.controls{display:flex;width:100%;gap:8px;margin-top:24px}
+input{min-width:0;flex:1;color:white;background:#101a30;border:1px solid #304467}
+#send{background:#68dfff;color:#071020;border:none;font-weight:bold}
+.small{color:#8799b9;font-size:12px;text-align:center;line-height:1.6;margin-top:25px}
+@media(max-width:360px){.app{padding:24px 14px}.orb{width:160px;height:160px;margin-top:38px}.controls{gap:6px}input,#send{padding:12px 10px}}
+</style>
+</head>
+<body>
+<main class="app">
+<h1>SARA</h1><p class="subtitle">TU ASISTENTE PERSONAL</p>
+<div class="orb" aria-hidden="true"></div>
+<p id="status" role="status">Sistema preparado</p>
+<div id="answer" aria-live="polite">Hola, soy Sara. Pulsa el micrófono para hablar conmigo.</div>
+<button id="mic" type="button" aria-label="Hablar con Sara">🎙️</button>
+<form class="controls" id="form">
+<input id="message" placeholder="Escribe aquí..." autocomplete="off" aria-label="Escribe un mensaje">
+<button id="send" type="submit">Enviar</button>
+</form>
+<p class="small">SARA · PROTOTIPO 1.1<br>Reconocimiento de voz y respuestas habladas</p>
+</main>
+<script>
+"use strict";
+const statusText=document.getElementById("status");
+const answer=document.getElementById("answer");
+const mic=document.getElementById("mic");
+const input=document.getElementById("message");
+const form=document.getElementById("form");
+let escuchando=false;
+let reconocimientoActual=null;
+
+function hablar(texto){
+  if(!("speechSynthesis" in window)){statusText.textContent="La voz no está disponible en este navegador.";return;}
+  window.speechSynthesis.cancel();
+  const voz=new SpeechSynthesisUtterance(texto);
+  voz.lang="es-ES";voz.rate=1;voz.pitch=1.05;
+  const voces=window.speechSynthesis.getVoices();
+  const vozEspanol=voces.find(function(v){return v.lang.toLowerCase().startsWith("es");});
+  if(vozEspanol)voz.voice=vozEspanol;
+  window.speechSynthesis.speak(voz);
+}
+
+function responder(texto){
+  const pregunta=texto.toLocaleLowerCase("es").trim();
+  let respuesta="";
+  if(pregunta.includes("cómo te llamas")||pregunta.includes("como te llamas")){
+    respuesta="Me llamo Sara, tu asistente personal.";
+  }else if(pregunta.includes("hola")){
+    respuesta="¡Hola! Estoy aquí. ¿Qué necesitas?";
+  }else if(pregunta.includes("qué hora")||pregunta.includes("que hora")){
+    respuesta="La hora de tu teléfono es "+new Date().toLocaleTimeString("es-EC",{hour:"2-digit",minute:"2-digit"});
+  }else if(pregunta.includes("fecha")||pregunta.includes("qué día")||pregunta.includes("que dia")){
+    respuesta="Hoy es "+new Date().toLocaleDateString("es-EC",{dateStyle:"full"});
+  }else if(pregunta.includes("cómo estás")||pregunta.includes("como estas")){
+    respuesta="Estoy lista para ayudarte. ¿Qué hacemos hoy?";
+  }else if(pregunta.includes("adiós")||pregunta.includes("adios")){
+    respuesta="Hasta luego. Aquí estaré cuando me necesites.";
+  }else{
+    respuesta="Todavía estoy aprendiendo a responder esa pregunta. En la siguiente etapa conectaremos mi inteligencia artificial.";
+  }
+  answer.textContent=respuesta;
+  statusText.textContent="Respuesta preparada.";
+  hablar(respuesta);
+}
+
+function escuchar(){
+  const Reconocimiento=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!Reconocimiento){
+    statusText.textContent="Este navegador no admite reconocimiento de voz. Prueba Chrome actualizado desde una página HTTPS.";
+    return;
+  }
+  if(escuchando){if(reconocimientoActual)reconocimientoActual.stop();return;}
+  const reconocimiento=new Reconocimiento();
+  reconocimientoActual=reconocimiento;
+  reconocimiento.lang="es-EC";
+  reconocimiento.continuous=false;
+  reconocimiento.interimResults=false;
+  reconocimiento.maxAlternatives=1;
+  escuchando=true;mic.textContent="🔵";statusText.textContent="Te estoy escuchando...";
+  reconocimiento.onresult=function(evento){
+    const texto=evento.results[0][0].transcript;
+    input.value=texto;statusText.textContent="Te he escuchado.";responder(texto);
+  };
+  reconocimiento.onerror=function(evento){
+    const mensajes={
+      "not-allowed":"Permiso de micrófono denegado. Revisa los permisos del navegador.",
+      "audio-capture":"No se encontró un micrófono disponible.",
+      "network":"Falló el servicio de reconocimiento de voz. Comprueba Internet.",
+      "no-speech":"No detecté voz. Pulsa el micrófono e inténtalo otra vez."
+    };
+    statusText.textContent=mensajes[evento.error]||("Error de voz: "+evento.error+". Inténtalo de nuevo.");
+  };
+  reconocimiento.onend=function(){escuchando=false;mic.textContent="🎙️";reconocimientoActual=null;};
+  try{reconocimiento.start();}
+  catch(error){escuchando=false;reconocimientoActual=null;mic.textContent="🎙️";statusText.textContent="No se pudo iniciar el micrófono. Espera un momento e inténtalo de nuevo.";}
+}
+mic.addEventListener("click",escuchar);
+form.addEventListener("submit",function(evento){evento.preventDefault();const texto=input.value.trim();if(!texto)return;responder(texto);});
+if("speechSynthesis" in window){window.speechSynthesis.onvoiceschanged=function(){window.speechSynthesis.getVoices();};window.speechSynthesis.getVoices();}
+</script>
+</body>
+</html>
